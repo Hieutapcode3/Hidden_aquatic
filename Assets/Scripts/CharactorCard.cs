@@ -25,6 +25,7 @@ public class CharactorCard : MonoBehaviour
     private bool shouldReturnToStart = false;
     private Transform targetBox;
     private bool canDrag;
+    private Sprite spriteOrigin;
     private void Awake()
     {
         startPosition = transform.position;
@@ -79,16 +80,21 @@ public class CharactorCard : MonoBehaviour
         yield return new WaitForSeconds(1f);
         canDrag = true;
     }
+    public void TweenScale()
+    {
+        transform.DOScale(0, 0.1f).SetEase(Ease.InOutQuad);
+    }
     private void OnMouseDown()
     {
-        if (!canDrag) return;
+        if (!canDrag || !GameManager.Instance.isPlaying) return;
         isDragging = true;
         shouldReturnToStart = false;
+        AudioManager.Instance.PlayAudioCollect();
     }
 
     private void OnMouseUp()
     {
-        if(!canDrag) return;
+        if(!canDrag || !GameManager.Instance.isPlaying) return;
         isDragging = false;
         CheckCollisionWithBox();
     }
@@ -104,7 +110,9 @@ public class CharactorCard : MonoBehaviour
                 if (box.boxId == charactorID)
                 {
                     GameManager.Instance.UpdateCorrectCount();
+                    AudioManager.Instance.PlayAudioCollect();
                     canDrag = false;
+                    gameObject.GetComponent<SpriteRenderer>().sprite = spriteOrigin;
                     targetBox = box.transform;
                     transform.DOScale(1.3f,0.5f).SetEase(Ease.InOutQuad);
                     box.UnActiveChild();
@@ -113,6 +121,10 @@ public class CharactorCard : MonoBehaviour
             }
         }
         shouldReturnToStart = true;
+    }
+    public void SetSprite()
+    {
+        spriteOrigin = gameObject.GetComponent<SpriteRenderer>().sprite;
     }
 
 }

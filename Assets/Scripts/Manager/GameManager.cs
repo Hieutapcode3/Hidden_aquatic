@@ -1,3 +1,4 @@
+using DG.Tweening;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -6,17 +7,26 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 public class GameManager : MonoBehaviour
 {
-    [SerializeField] private Sprite _musicImg;
-    [SerializeField] private Sprite _muteImg;
     public bool isMuted;
     [SerializeField] private List<Button> _musicButtons;
+    [SerializeField] private List<Text> musicStateTxt;
     [SerializeField] private GameObject losePanel;
-    [SerializeField] private Text scoreTxt;
+    [SerializeField] private List<Text> scoreTxts;
     [SerializeField] private Text timeCountDown;
+    [SerializeField] private GameObject pauseContainer;
+    [SerializeField] private GameObject endContainer;
+    [SerializeField] private GameObject containerFill;
+    [SerializeField] private GameObject fill;
+    [SerializeField] private GameObject pauseBtn;
+    [SerializeField] private List<Image> background;
+    [SerializeField] private List<Sprite> spriteBg;
+    [SerializeField] private GameObject circle;
+    [SerializeField] private GameObject turtorial;
     private int score;
     private float totalTime = 60f;
     public static GameManager Instance;
     private int correctCount = 0;
+    public bool isPlaying;
 
     private void Awake()
     {
@@ -32,22 +42,62 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         score = 0;
-        scoreTxt.text = score.ToString();
+        foreach(Text txt in scoreTxts)
+        {
+            txt.text = score.ToString();
+
+        }
         Time.timeScale = 1;
         isMuted = PlayerPrefs.GetInt("isMuted", 0) == 1;
         if (_musicButtons.Count != 0)
         {
             foreach (Button btn in _musicButtons)
             {
-                btn.image.sprite = isMuted ? _muteImg : _musicImg;
                 btn.onClick.AddListener(OnMusicButtonClick);
             }
         }
+        if (isMuted)
+        {
+            foreach (Text txt in musicStateTxt)
+            {
+                txt.text = "off";
+            }
+        }
+        else
+        {
+            foreach (Text txt in musicStateTxt)
+            {
+                txt.text = "on";
+            }
+        }
+        foreach (var item in background)
+        {
+            item.sprite = spriteBg[PlayerPrefs.GetInt("GameMode")];
+        }
+        if(PlayerPrefs.GetInt("GameMode") == 0)
+        {
+            totalTime = 60;
+            if (timeCountDown != null)
+                timeCountDown.text = totalTime.ToString();
+        }
+        else if(PlayerPrefs.GetInt("GameMode")== 1)
+        {
+            totalTime = 90;
+            if (timeCountDown != null)
+                timeCountDown.text = totalTime.ToString();
+        }
+        else if (PlayerPrefs.GetInt("GameMode") == 2)
+        {
+            totalTime = 120;
+            if (timeCountDown != null)
+                timeCountDown.text = totalTime.ToString();
+        }
+        StartCoroutine(StartAnim());
     }
 
     private void Update()
     {
-        if (totalTime > 0)
+        if (totalTime > 0 && isPlaying)
         {
             totalTime -= Time.deltaTime;
             int minutes = Mathf.FloorToInt(totalTime / 60);
@@ -60,15 +110,47 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+    private void TurtorialMoveIn()
+    {
+        RectTransform tutorialRect = turtorial.GetComponent<RectTransform>();
+        tutorialRect.DOAnchorPos(new Vector2(596f, -268f), 1f).SetEase(Ease.InOutQuad);
+    }
+
+    private void TurtorialMoveOut()
+    {
+        RectTransform tutorialRect = turtorial.GetComponent<RectTransform>();
+        tutorialRect.DOAnchorPos(new Vector2(1451f, -268f), 1f).SetEase(Ease.InOutQuad);
+    }
+
+    IEnumerator StartAnim()
+    {
+        circle.transform.localScale = Vector3.one * 40;
+        circle.transform.DOScale(0, 1f).SetEase(Ease.InOutQuad);
+        yield return new WaitForSeconds(0.5f);
+        CharactorManager.Instance.RandomizeCharactorCards();
+        BoxManager.Instance.RandomizeBoxCards();
+        AudioManager.Instance.PlayAudioBackground();
+    }
 
     public void OnMusicButtonClick()
     {
         isMuted = !isMuted;
         PlayerPrefs.SetInt("isMuted", isMuted ? 1 : 0);
         PlayerPrefs.Save();
-        foreach (Button btn in _musicButtons)
+        AudioManager.Instance.audioSource.mute = isMuted;
+        if (isMuted)
         {
-            btn.image.sprite = isMuted ? _muteImg : _musicImg;
+            foreach(Text txt in musicStateTxt)
+            {
+                txt.text = "off";
+            }
+        }
+        else
+        {
+            foreach (Text txt in musicStateTxt)
+            {
+                txt.text = "on";
+            }
         }
     }
 
@@ -100,19 +182,23 @@ public class GameManager : MonoBehaviour
 
     public void PauseGame()
     {
-        Time.timeScale = 0;
+        isPlaying = false;
+        pauseContainer.transform.localScale = Vector3.zero;
+        pauseContainer.transform.DOScale(1, 1f).SetEase(Ease.InOutQuad);
     }
 
     public void ResumeGame()
     {
-        Time.timeScale = 1;
+        isPlaying = true;
     }
 
     public IEnumerator ActiveLosePanel()
     {
         yield return new WaitForSeconds(1f);
+        AudioManager.Instance.PlayAudioFailGame();
+        endContainer.transform.localScale = Vector3.zero;
         losePanel.SetActive(true);
-        Time.timeScale = 0;
+        endContainer.transform.DOScale(1, 1f).SetEase(Ease.InOutQuad);
     }
 
     public void StartCountdown(int duration)
@@ -122,7 +208,11 @@ public class GameManager : MonoBehaviour
     public void AddScore(int points)
     {
         score += points;
-        scoreTxt.text = score.ToString();
+        foreach (Text txt in scoreTxts)
+        {
+            txt.text = score.ToString();
+
+        }
     }
     public void UpdateCorrectCount()
     {
@@ -131,8 +221,74 @@ public class GameManager : MonoBehaviour
         if(correctCount == 10)
         {
             correctCount = 0;
-            CharactorManager.Instance.RandomizeCharactorCards();
-            BoxManager.Instance.RandomizeBoxCards();    
+            StartCoroutine(AnimCroutine());
         }
+    }
+    IEnumerator AnimCroutine()
+    {
+        yield return new WaitForSeconds(0.5f);
+        CharactorManager.Instance.StartCoroutine(CharactorManager.Instance.TweenCharScale());
+        yield return new WaitForSeconds(1.1f);
+        CharactorManager.Instance.RandomizeCharactorCards();
+        BoxManager.Instance.RandomizeBoxCards();
+    }
+    public void NormalGame()
+    {
+        isPlaying = true;
+        
+    }
+    public void HardModeGame()
+    {
+        TurtorialMoveIn();
+        isPlaying = false;
+        containerFill.SetActive(true);
+        pauseBtn.SetActive(false);
+        StartCoroutine(HardModeCountdown(6f));
+    }
+
+    private IEnumerator HardModeCountdown(float duration)
+    {
+        float elapsedTime = 0f;
+        Image fillImage = fill.GetComponent<Image>();
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(1 - (elapsedTime / duration));
+            fillImage.fillAmount = progress;
+
+            yield return null;
+        }
+        TurtorialMoveOut();
+        BoxManager.Instance.HiddenSpriteBox();
+        containerFill.SetActive(false);
+        pauseBtn.SetActive(true);
+        isPlaying = true;
+    }
+    private IEnumerator VeryHardModeCountdown(float duration)
+    {
+        float elapsedTime = 0f;
+        Image fillImage = fill.GetComponent<Image>();
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            float progress = Mathf.Clamp01(1 - (elapsedTime / duration));
+            fillImage.fillAmount = progress;
+
+            yield return null;
+        }
+        TurtorialMoveOut();
+        BoxManager.Instance.HiddenSpriteBox();
+        CharactorManager.Instance.HiddenSpriteCharactor();
+        containerFill.SetActive(false);
+        pauseBtn.SetActive(true);
+        isPlaying = true;
+    }
+    public void VeryHardModeGame()
+    {
+        TurtorialMoveIn();
+        isPlaying = false;
+        containerFill.SetActive(true);
+        pauseBtn.SetActive(false);
+        StartCoroutine(VeryHardModeCountdown(10f));
     }
 }

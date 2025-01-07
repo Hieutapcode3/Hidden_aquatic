@@ -6,17 +6,8 @@ public class CharactorManager : ManualSingletonMono<CharactorManager>
 {
     [SerializeField] private List<GameObject> charactorCards;
     [SerializeField] private List<Sprite> charactors;
-    void Start()
-    {
-        RandomizeCharactorCards();
-    }
-    private void Update()
-    {
-        if(Input.GetKeyDown(KeyCode.Space))
-        {
-            RandomizeCharactorCards();
-        }
-    }
+    [SerializeField] private Sprite hiddenCharactor;
+    [SerializeField] private GameObject starEffect;
     public void RandomizeCharactorCards()
     {
         if (charactorCards.Count != 10 || charactors.Count != 10)
@@ -53,11 +44,39 @@ public class CharactorManager : ManualSingletonMono<CharactorManager>
                 {
                     Debug.LogError("No SpriteRenderer found in children of " + charactorCards[i].name);
                 }
+                charactorCard.SetSprite();
             }
             else
             {
                 Debug.LogError("CharactorCard script not found on " + charactorCards[i].name);
             }
+        }
+        if(PlayerPrefs.GetInt("GameMode") == 0) GameManager.Instance.NormalGame();
+        else if (PlayerPrefs.GetInt("GameMode") == 1) GameManager.Instance.HardModeGame();
+        else if(PlayerPrefs.GetInt("GameMode") == 2) GameManager.Instance.VeryHardModeGame();
+    }
+    public IEnumerator TweenCharScale()
+    {
+        foreach(GameObject obj in charactorCards)
+        {
+            if (obj != null)
+            {
+                obj.GetComponent<CharactorCard>().TweenScale();
+                yield return new WaitForSeconds(0.1f);
+                Instantiate(starEffect, obj.transform.position,Quaternion.identity);
+                AudioManager.Instance.PlayAudioStart();
+            }
+        }
+    }
+    public void HiddenSpriteCharactor()
+    {
+        foreach (var item in charactorCards)
+        {
+            item.GetComponent<SpriteRenderer>().sprite = hiddenCharactor;
+        }
+        foreach (var item in charactorCards)
+        {
+            item.GetComponent<CharactorCard>().TweenAnim();
         }
     }
 }

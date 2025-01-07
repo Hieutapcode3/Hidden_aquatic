@@ -6,17 +6,7 @@ public class BoxManager : ManualSingletonMono<BoxManager>
 {
     [SerializeField] private List<GameObject> boxCards;
     [SerializeField] private List<Sprite> charactors;
-    void Start()
-    {
-        RandomizeBoxCards();
-    }
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            RandomizeBoxCards();
-        }
-    }
+    [SerializeField] private Sprite hiddenBox;
     public void RandomizeBoxCards()
     {
         if (boxCards.Count != 10 || charactors.Count != 10)
@@ -49,6 +39,7 @@ public class BoxManager : ManualSingletonMono<BoxManager>
                 if (spriteRenderer != null)
                 {
                     spriteRenderer.sprite = charactors[assignedId - 1];
+                    spriteRenderer.color = Color.black;
                 }
                 else
                 {
@@ -59,6 +50,19 @@ public class BoxManager : ManualSingletonMono<BoxManager>
             {
                 Debug.LogError("BoxCard script not found on " + boxCards[i].name);
             }
+        }
+    }
+    public void HiddenSpriteBox()
+    {
+        foreach(GameObject box in boxCards)
+        {
+            GameObject child = box.transform.GetChild(0).gameObject;
+            child.GetComponent<SpriteRenderer>().sprite = hiddenBox;
+            child.GetComponent<SpriteRenderer>().color = Color.white;
+        }
+        foreach (GameObject box in boxCards)
+        {
+            box.GetComponent<BoxCard>().TweenAnim();
         }
     }
 }
